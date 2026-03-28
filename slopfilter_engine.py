@@ -18,6 +18,15 @@ APP_VERSION = "3.0-alpha"
 
 WORD_RE = re.compile(r"[A-Za-z']+")
 CONSECUTIVE_SPACE_RE = re.compile(r"[ \t]{2,}")
+PASSIVE_RE = re.compile(
+    r"\b(was|were|been|being|is|are|am|get|got|gets|getting)\s+"
+    r"((?:not|never|always|often|already|also|then|soon|finally|fully|"
+    r"quickly|slowly|immediately|subsequently|reportedly|recently)\s+)*"
+    r"(\w+ed|written|made|done|seen|taken|given|found|told|known|shown|broken|"
+    r"chosen|driven|eaten|fallen|forgotten|frozen|hidden|mistaken|proven|ridden|"
+    r"risen|shaken|spoken|stolen|sworn|torn|worn|woven)\b",
+    re.I,
+)
 
 ABBREVIATIONS = {
     "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "ft", "mt",
@@ -301,6 +310,10 @@ def count_pattern_hits(text: str, pattern: str) -> int:
     return len(re.findall(rf"\b{re.escape(pattern)}\b", text, flags=re.I))
 
 
+def count_passive_voice(text: str) -> int:
+    return len(PASSIVE_RE.findall(text))
+
+
 def diff_html(original: str, revised: str) -> str:
     differ = difflib.HtmlDiff(tabsize=2, wrapcolumn=90)
     table = differ.make_table(
@@ -407,8 +420,9 @@ def analyse_text(text: str) -> dict:
     transition_hits = sum(count_pattern_hits(lower, item) for item in TRANSITION_PATTERNS)
     repeated_starts = count_repeated_starts(sentences)
     monotonous_runs = count_monotonous_runs(lengths)
+    passive_hits = count_passive_voice(text)
 
-    directness = clamp(100 - filler_hits * 8 - transition_hits * 4 - generic_hits * 1.5, 0, 100)
+    directness = clamp(100 - filler_hits * 8 - transition_hits * 4 - generic_hits * 1.5 - passive_hits * 5, 0, 100)
     density = clamp(100 - filler_hits * 7 - modifier_hits * 1.6 - generic_hits * 1.8, 0, 100)
     rhythm = clamp(100 - rhythm_hits * 8 - monotonous_runs * 6 - max(0.0, 7 - safe_stdev(lengths)) * 4, 0, 100)
     authenticity = clamp(
@@ -431,6 +445,7 @@ def analyse_text(text: str) -> dict:
             + cliche_hits * 9
             + repeated_starts * 7
             + monotonous_runs * 6
+            + passive_hits * 4
             + max(0.0, 0.72 - lexical_diversity(tokens)) * 70
             + (text.count("—") + text.count("--")) * 4,
             0,
@@ -459,6 +474,7 @@ def analyse_text(text: str) -> dict:
             "abstract_hits": abstract_hits,
             "repeated_starts": repeated_starts,
             "monotonous_runs": monotonous_runs,
+            "passive_hits": passive_hits,
         },
         "voice_profile": build_voice_profile(remove_flagged_sentences(text, annotations)),
         "sentence_count": len(sentences),
@@ -582,6 +598,17 @@ def classify_sentence(sentence: str, sentence_index: int, lengths: list[int], se
                 "severity": 54,
                 "original": sentence.strip(),
                 "reason": "The sentence carries a lot of weight at once and is a good candidate for compression.",
+            }
+        )
+
+    if PASSIVE_RE.search(sentence):
+        annotations.append(
+            {
+                "id": str(uuid.uuid4())[:8],
+                "type": "structure",
+                "severity": 48,
+                "original": sentence.strip(),
+                "reason": "Passive construction distances the reader from the action. Consider active voice.",
             }
         )
 

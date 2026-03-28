@@ -225,3 +225,27 @@ class TestRewriteQualityGuard:
         risk_delta = original_analysis["detector_risk"] - revised_analysis["detector_risk"]
         if quality_delta < -2 and risk_delta < -2:
             assert revised == text, "Rewriter made both metrics worse but did not fall back"
+
+
+class TestPassiveVoiceDetection:
+    def test_passive_detected(self):
+        text = "The decision was made by the committee. The report was written by the team. The issue was resolved quickly."
+        result = analyse_text(text)
+        assert result["signals"]["passive_hits"] >= 2
+
+    def test_active_not_flagged(self):
+        text = "The committee made a decision. The team wrote the report. They resolved the issue."
+        result = analyse_text(text)
+        assert result["signals"]["passive_hits"] == 0
+
+    def test_passive_affects_quality(self):
+        passive = "The door was opened. The light was turned on. The message was received."
+        active = "He opened the door. She turned on the light. They received the message."
+        passive_result = analyse_text(passive)
+        active_result = analyse_text(active)
+        assert passive_result["quality_score"] < active_result["quality_score"]
+
+    def test_passive_affects_detector_risk(self):
+        passive = "It was determined that the project was completed. The findings were reviewed."
+        result = analyse_text(passive)
+        assert result["signals"]["passive_hits"] >= 2
