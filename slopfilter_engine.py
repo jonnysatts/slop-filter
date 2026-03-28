@@ -602,7 +602,24 @@ def cleanup_sentence(sentence: str) -> str:
     for pattern, replacement in FILLER_PATTERNS:
         updated = pattern.sub(replacement, updated)
 
-    updated = re.sub(r"\b(very|really|quite|rather|somewhat|actually|basically|simply)\b\s*", "", updated, flags=re.I)
+    # Only remove intensifiers when stacked or before sloppy adjectives
+    intensifier_pat = r"\b(very|really|quite|rather|somewhat|truly|basically)\b"
+    updated = re.sub(
+        rf"{intensifier_pat}\s+{intensifier_pat}\b",
+        lambda m: m.group(2),
+        updated,
+        flags=re.I,
+    )
+    sloppy_adjectives = (
+        r"(meaningful|impactful|important|interesting|significant|remarkable|"
+        r"powerful|incredible|amazing|stunning|compelling|profound|unique)"
+    )
+    updated = re.sub(
+        rf"\b(very|really|truly|quite)\s+{sloppy_adjectives}\b",
+        lambda m: m.group(2),
+        updated,
+        flags=re.I,
+    )
     updated = updated.replace("—", ", ").replace("--", ", ")
     updated = re.sub(r"\s+,", ",", updated)
     updated = re.sub(r",\s*,", ", ", updated)
