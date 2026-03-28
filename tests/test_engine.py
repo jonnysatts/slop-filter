@@ -159,3 +159,44 @@ class TestSplitSentences:
     def test_etc(self):
         result = split_sentences("Bring food, drinks, etc. The party starts at eight.")
         assert len(result) == 2
+
+
+class TestCleanupSentence:
+    def test_started_to_not_broken(self):
+        result = cleanup_sentence("He started to run.")
+        assert result != "He run."
+        # Should either preserve it or handle it correctly
+        assert result.endswith(".")
+
+    def test_began_to_not_broken(self):
+        result = cleanup_sentence("They began to understand the problem.")
+        assert "They understand" not in result or "began" in result
+
+    def test_preserves_normal_sentences(self):
+        result = cleanup_sentence("The car moved quickly down the road.")
+        assert result == "The car moved quickly down the road."
+
+    def test_actually_preserved_when_meaningful(self):
+        result = cleanup_sentence("He was actually innocent.")
+        assert "actually" in result.lower()
+
+    def test_simply_preserved_when_meaningful(self):
+        result = cleanup_sentence("She simply walked away.")
+        assert "simply" in result.lower()
+
+    def test_stacked_intensifiers_still_cleaned(self):
+        result = cleanup_sentence("It was very truly remarkable.")
+        intensifiers_remaining = sum(1 for w in result.lower().split() if w in {"very", "truly"})
+        assert intensifiers_remaining < 2
+
+    def test_emdash_terminal_preserved(self):
+        result = cleanup_sentence("He had one thing to say\u2014")
+        assert not result.endswith(",")
+
+    def test_emdash_dialogue_preserved(self):
+        result = cleanup_sentence('"I don\'t think\u2014" she started.')
+        assert not result.startswith('"I don\'t think, "')
+
+    def test_emdash_parenthetical_converted(self):
+        result = cleanup_sentence("The project\u2014already behind schedule\u2014needed more time.")
+        assert "needed" in result

@@ -506,6 +506,17 @@ def classify_sentence(sentence: str, sentence_index: int, lengths: list[int], se
             }
         )
 
+    if re.search(r"\b(started|began) to\b", lower):
+        annotations.append(
+            {
+                "id": str(uuid.uuid4())[:8],
+                "type": "filler",
+                "severity": 45,
+                "original": sentence.strip(),
+                "reason": "Progressive construction ('started to') can often be replaced with the simple past tense.",
+            }
+        )
+
     if any(phrase in lower for phrase in CLICHES):
         annotations.append(
             {
@@ -592,7 +603,6 @@ def cleanup_sentence(sentence: str) -> str:
         updated = pattern.sub(replacement, updated)
 
     updated = re.sub(r"\b(very|really|quite|rather|somewhat|actually|basically|simply)\b\s*", "", updated, flags=re.I)
-    updated = re.sub(r"\b(started|began) to\b", "", updated, flags=re.I)
     updated = updated.replace("—", ", ").replace("--", ", ")
     updated = re.sub(r"\s+,", ",", updated)
     updated = re.sub(r",\s*,", ", ", updated)
