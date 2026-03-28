@@ -249,3 +249,40 @@ class TestPassiveVoiceDetection:
         passive = "It was determined that the project was completed. The findings were reviewed."
         result = analyse_text(passive)
         assert result["signals"]["passive_hits"] >= 2
+
+
+class TestDocumentModeBias:
+    def test_business_strips_hedging(self):
+        text = "It could be argued that the strategy works. One might say it is effective."
+        result = apply_document_mode_bias(text, "business")
+        assert "could be argued" not in result.lower()
+        assert "one might say" not in result.lower()
+
+    def test_business_strips_narrative_framing(self):
+        text = "Imagine a world where profits doubled. Picture this scenario."
+        result = apply_document_mode_bias(text, "business")
+        assert "imagine a world" not in result.lower()
+
+    def test_marketing_strips_unsubstantiated_superlatives(self):
+        text = "Our revolutionary cutting-edge game-changing solution delivers."
+        result = apply_document_mode_bias(text, "marketing")
+        assert "revolutionary" not in result.lower()
+        assert "cutting-edge" not in result.lower()
+        assert "game-changing" not in result.lower()
+
+    def test_essay_strips_first_person_hedging(self):
+        text = "I believe that the evidence shows growth. In my opinion, this is clear."
+        result = apply_document_mode_bias(text, "essay")
+        assert "i believe that" not in result.lower()
+        assert "in my opinion" not in result.lower()
+
+    def test_fiction_preserves_fragments(self):
+        text = "The door opened. Silence. Nothing moved."
+        result = apply_document_mode_bias(text, "fiction")
+        assert "Silence." in result
+
+    def test_worldbuilding_preserves_technical_terms(self):
+        text = "The framework governed the system's approach to resource allocation."
+        result = apply_document_mode_bias(text, "worldbuilding")
+        assert "framework" in result.lower()
+        assert "system" in result.lower()

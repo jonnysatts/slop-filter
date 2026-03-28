@@ -726,20 +726,46 @@ def align_sentence_lengths(paragraph: str, target_profile: dict) -> str:
 
 def apply_document_mode_bias(text: str, document_mode: str) -> str:
     updated = text
+
     if document_mode in {"business", "essay"}:
         updated = re.sub(r"\b(in conclusion|ultimately)\b[, ]*", "", updated, flags=re.I)
         updated = re.sub(r"\ba powerful reminder(?: that)?\b", "evidence", updated, flags=re.I)
         updated = re.sub(r"\bthis highlights the importance of\b", "this shows", updated, flags=re.I)
         updated = re.sub(r"\bthis underscores the need for\b", "this shows", updated, flags=re.I)
-    elif document_mode == "marketing":
+        updated = re.sub(r"\bit could be argued that\b\s*", "", updated, flags=re.I)
+        updated = re.sub(r"\bone might say(?: that)?\b\s*", "", updated, flags=re.I)
+        updated = re.sub(r"\bit goes without saying(?: that)?\b\s*", "", updated, flags=re.I)
+        updated = re.sub(r"\bimagine a world where\b\s*", "", updated, flags=re.I)
+        updated = re.sub(r"\bpicture this[: ]*\b\s*", "", updated, flags=re.I)
+        updated = re.sub(r"\blet's take a moment to\b\s*", "", updated, flags=re.I)
+
+    if document_mode == "essay":
+        updated = re.sub(r"\bi believe(?: that)?\b\s*", "", updated, flags=re.I)
+        updated = re.sub(r"\bin my opinion[, ]*\b\s*", "", updated, flags=re.I)
+        updated = re.sub(r"\bit is my view that\b\s*", "", updated, flags=re.I)
+        updated = re.sub(r"\bi would argue that\b\s*", "", updated, flags=re.I)
+        updated = re.sub(r"\bas we all know[, ]*\b\s*", "", updated, flags=re.I)
+
+    if document_mode == "marketing":
         updated = re.sub(r"\b(world-class|breathtaking|stunning)\b\s*", "", updated, flags=re.I)
         updated = re.sub(r"\bnestled within\b", "in", updated, flags=re.I)
         updated = re.sub(r"\bvibrant tapestry\b", "scene", updated, flags=re.I)
-    elif document_mode in {"fiction", "worldbuilding"}:
+        updated = re.sub(r"\b(revolutionary|game-changing|cutting-edge|best-in-class)\b\s*", "", updated, flags=re.I)
+        updated = re.sub(r"\b(unparalleled|groundbreaking|next-generation|state-of-the-art)\b\s*", "", updated, flags=re.I)
+        updated = re.sub(r"\bunlock the (full )?potential of\b", "improve", updated, flags=re.I)
+        updated = re.sub(r"\bseamless(ly)?\b\s*", "", updated, flags=re.I)
+        updated = re.sub(r"\bleverage\b", "use", updated, flags=re.I)
+
+    if document_mode in {"fiction", "worldbuilding"}:
         updated = re.sub(r"\b(in conclusion|as a reminder)\b[, ]*", "", updated, flags=re.I)
 
     updated = CONSECUTIVE_SPACE_RE.sub(" ", updated)
     updated = re.sub(r"\s+([.?!,;:])", r"\1", updated)
+
+    # Fix capitalisation after removals at sentence start
+    if updated and updated[0].islower():
+        updated = updated[0].upper() + updated[1:]
+
     return updated.strip()
 
 
