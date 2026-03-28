@@ -300,10 +300,17 @@ def safe_stdev(values: list[float]) -> float:
     return statistics.pstdev(values)
 
 
-def lexical_diversity(tokens: list[str]) -> float:
+def lexical_diversity(tokens: list[str], window_size: int = 10) -> float:
     if not tokens:
         return 0.0
-    return len(set(tokens)) / len(tokens)
+    if len(tokens) <= window_size:
+        return len(set(tokens)) / len(tokens)
+    windows = []
+    for start in range(0, len(tokens), window_size):
+        chunk = tokens[start : start + window_size]
+        if len(chunk) >= window_size // 2:
+            windows.append(len(set(chunk)) / len(chunk))
+    return sum(windows) / len(windows) if windows else len(set(tokens)) / len(tokens)
 
 
 def count_pattern_hits(text: str, pattern: str) -> int:

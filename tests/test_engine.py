@@ -286,3 +286,19 @@ class TestDocumentModeBias:
         result = apply_document_mode_bias(text, "worldbuilding")
         assert "framework" in result.lower()
         assert "system" in result.lower()
+
+
+class TestLexicalDiversity:
+    def test_repeated_text_not_heavily_penalised(self):
+        short = "The cat sat on the mat. It purred loudly."
+        long_text = (short + " ") * 25
+        short_ld = lexical_diversity(tokenize(short))
+        long_ld = lexical_diversity(tokenize(long_text))
+        assert abs(short_ld - long_ld) < 0.3, f"Gap too large: {abs(short_ld - long_ld):.4f}"
+
+    def test_genuinely_repetitive_text_still_penalised(self):
+        repetitive = "The thing is the thing is the thing is the thing."
+        varied = "Mercury fell. Neon flickered. The corridor hummed with tension."
+        rep_ld = lexical_diversity(tokenize(repetitive))
+        var_ld = lexical_diversity(tokenize(varied))
+        assert var_ld > rep_ld
