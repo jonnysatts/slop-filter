@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Slop Filter V3 Alpha</title>
+  <meta name="description" content="Batch prose refinement, document review, score deltas, voice consistency, and export for Slop Filter V3 alpha.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-orb bg-orb-a"></div>
+  <div class="bg-orb bg-orb-b"></div>
+  <div class="bg-grid"></div>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">SF</div>
+        <div>
+          <div class="brand-title">Slop Filter V3 Alpha</div>
+          <div class="brand-subtitle">Batch jobs, review, score deltas, voice consistency, export</div>
+        </div>
+      </div>
+      <div class="topbar-meta">
+        <span class="pill pill-soft" id="workspaceStatus">Ready</span>
+        <span class="pill" id="workspaceCounts">0 documents</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <section class="panel panel-quiet">
+          <div class="panel-head">
+            <div>
+              <div class="panel-kicker">Batch Jobs</div>
+              <h2>Workspaces</h2>
+            </div>
+            <button class="icon-btn" data-action="new-sample" title="Load a demo batch">Demo</button>
+          </div>
+          <div id="batchList" class="stack"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-kicker">Import</div>
+              <h2>Add documents</h2>
+            </div>
+          </div>
+          <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Choose Markdown or text files">
+            <strong>Drop Markdown or text files here</strong>
+            <span>or click to browse individual `.md` and `.txt` files</span>
+          </div>
+          <div class="button-row import-actions">
+            <button class="btn" type="button" id="chooseFilesBtn">Choose files</button>
+            <button class="btn" type="button" id="chooseFolderBtn">Choose folder</button>
+          </div>
+          <input id="fileInput" type="file" accept=".md,.txt" multiple hidden>
+          <input id="folderInput" type="file" accept=".md,.txt" multiple webkitdirectory directory hidden>
+          <label class="field">
+            <span>Style examples / house voice</span>
+            <textarea id="voiceSampleInput" rows="6" placeholder="Paste exemplar prose here to anchor voice consistency, batch drift checks, and target-voice blending."></textarea>
+          </label>
+          <div class="button-row">
+            <button class="btn btn-primary" data-action="import-text">Add pasted sample</button>
+            <button class="btn" data-action="clear-batch">Clear current batch</button>
+          </div>
+          <p class="help-text">This alpha supports `.md` and `.txt` directly. Use <strong>Choose files</strong> for normal uploads and <strong>Choose folder</strong> when you want to ingest a directory of chapters.</p>
+        </section>
+
+        <section class="panel settings-panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-kicker">Run Settings</div>
+              <h2>Batch controls</h2>
+            </div>
+          </div>
+          <div class="settings-preview">
+            <div class="settings-chips" id="settingsChips">
+              <span class="badge info" id="settingsModeChip">Preserve batch voice</span>
+              <span class="badge" id="settingsBudgetChip">Medium edit</span>
+              <span class="badge" id="settingsVoiceChip">Hybrid voice</span>
+              <span class="badge" id="settingsDocumentModeChip">Fiction</span>
+            </div>
+            <p class="settings-preview-text" id="settingsPreviewText">Use preserve mode for chapter cleanup, hybrid mode when you want the batch to stay coherent while still leaning toward your house voice, and pick the document mode so fiction and business copy do not get the same cleanup rules.</p>
+          </div>
+          <div class="settings-grid">
+            <label class="field control-field">
+              <span>Voice strategy</span>
+              <select id="modeSelect">
+                <option value="preserve">Preserve batch voice</option>
+                <option value="house">Apply house voice</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="frozen">Frozen series voice</option>
+              </select>
+              <small class="field-help">Choose whether the batch keeps its existing shared voice or gets pulled toward a target style.</small>
+            </label>
+            <label class="field control-field">
+              <span>Edit budget</span>
+              <select id="budgetSelect">
+                <option value="minimal">Minimal</option>
+                <option value="medium" selected>Medium</option>
+                <option value="aggressive">Aggressive</option>
+              </select>
+              <small class="field-help">Minimal makes surgical edits. Aggressive pushes harder on cadence, density, and cleanup.</small>
+            </label>
+            <label class="field control-field">
+              <span>Detector panel</span>
+              <select id="panelSelect">
+                <option value="local-lite" selected>Local lite</option>
+                <option value="editorial-plus">Editorial plus</option>
+                <option value="full-panel">Full panel</option>
+              </select>
+              <small class="field-help">Local lite is fastest. Stronger panels can be harsher about repetition, filler, and synthetic cadence.</small>
+            </label>
+            <label class="field control-field">
+              <span>Voice source</span>
+              <select id="voiceModeSelect">
+                <option value="batch_only">Batch only</option>
+                <option value="voice_pack_only">Voice pack only</option>
+                <option value="hybrid" selected>Hybrid</option>
+                <option value="frozen_project_voice">Frozen project voice</option>
+              </select>
+              <small class="field-help">Hybrid balances the uploaded batch against your supplied voice examples.</small>
+            </label>
+            <label class="field control-field">
+              <span>Document mode</span>
+              <select id="documentModeSelect">
+                <option value="fiction" selected>Fiction</option>
+                <option value="essay">Essay</option>
+                <option value="marketing">Marketing</option>
+                <option value="business">Business</option>
+                <option value="worldbuilding">Worldbuilding</option>
+              </select>
+              <small class="field-help">Tell the Humanizer pass what kind of prose this is so it protects the right texture instead of flattening everything.</small>
+            </label>
+            <label class="field control-field threshold-field">
+              <div class="field-headline">
+                <span>Voice threshold</span>
+                <strong id="thresholdValue">66</strong>
+              </div>
+              <input id="voiceThresholdInput" type="range" min="45" max="90" value="66">
+              <small class="field-help">Higher values demand tighter consistency between chapters. Lower values allow more tonal drift.</small>
+            </label>
+          </div>
+          <div class="button-row settings-actions">
+            <button class="btn btn-primary" data-action="run-batch">Run batch</button>
+            <button class="btn" data-action="rerun-outliers">Rerun outliers</button>
+            <button class="btn" data-action="approve-all">Approve all</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <section class="hero panel">
+          <div class="hero-copy">
+            <div class="panel-kicker">Current batch</div>
+            <h1 id="batchTitle">No batch selected</h1>
+            <p id="batchDescription" class="hero-copy-text">Load a batch of related chapters, marketing copy, or notes, then run the local analysis loop to inspect score deltas and voice consistency.</p>
+            <div class="hero-actions">
+              <button class="btn btn-primary" data-action="run-batch">Run batch</button>
+              <button class="btn" data-action="export-zip">Export bundle</button>
+              <button class="btn" data-action="create-batch">New batch</button>
+            </div>
+          </div>
+          <div class="hero-metrics" id="heroMetrics"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-kicker">Overview</div>
+              <h2>What happened</h2>
+            </div>
+            <div class="badge-row" id="batchBadges"></div>
+          </div>
+          <div class="summary-grid" id="summaryGrid"></div>
+        </section>
+
+        <section class="split">
+          <section class="panel table-panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-kicker">Documents</div>
+                <h2>Review queue</h2>
+              </div>
+              <div class="panel-hint" id="docQueueHint">Click a document to review it.</div>
+            </div>
+            <div id="docTable" class="doc-table"></div>
+          </section>
+
+          <section class="panel inspector-panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-kicker">Document Review</div>
+                <h2 id="docTitle">Select a document</h2>
+              </div>
+              <div class="badge-row" id="docBadges"></div>
+            </div>
+            <div class="tabs" id="detailTabs">
+              <button class="tab is-active" data-action="tab" data-tab="overview">Overview</button>
+              <button class="tab" data-action="tab" data-tab="original">Original</button>
+              <button class="tab" data-action="tab" data-tab="revised">Revised</button>
+              <button class="tab" data-action="tab" data-tab="diff">Diff</button>
+              <button class="tab" data-action="tab" data-tab="voice">Voice</button>
+            </div>
+            <div id="docInspector" class="inspector"></div>
+          </section>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-kicker">Export</div>
+              <h2>Bundle outputs</h2>
+            </div>
+            <div class="panel-actions">
+              <button class="btn" data-action="export-csv">CSV summary</button>
+              <button class="btn" data-action="export-json">JSON manifest</button>
+              <button class="btn btn-primary" data-action="export-zip">Download zip bundle</button>
+            </div>
+          </div>
+          <div id="exportPanel" class="export-panel"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="humanizer_rules.js"></script>
+  <script src="humanizer_engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
