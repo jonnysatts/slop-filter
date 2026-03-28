@@ -302,3 +302,32 @@ class TestLexicalDiversity:
         rep_ld = lexical_diversity(tokenize(repetitive))
         var_ld = lexical_diversity(tokenize(varied))
         assert var_ld > rep_ld
+
+
+class TestMarkdownHandling:
+    def test_headings_preserved(self):
+        text = "# Introduction\n\nThe project began in March. It grew quickly.\n\n## Methods\n\nWe used three tools."
+        profile = build_voice_profile(text)
+        revised, annotations, changes = rewrite_text(text, profile, "medium")
+        assert "# Introduction" in revised
+        assert "## Methods" in revised
+
+    def test_bullet_lists_preserved(self):
+        text = "Key findings:\n\n- First item\n- Second item\n- Third item\n\nThe results were clear."
+        profile = build_voice_profile(text)
+        revised, annotations, changes = rewrite_text(text, profile, "medium")
+        assert "- First item" in revised
+        assert "- Second item" in revised
+
+    def test_code_blocks_preserved(self):
+        text = "Run the command:\n\n```\npython3 server.py\n```\n\nThe server starts."
+        profile = build_voice_profile(text)
+        revised, annotations, changes = rewrite_text(text, profile, "medium")
+        assert "python3 server.py" in revised
+
+    def test_prose_between_structure_still_cleaned(self):
+        text = "# Title\n\nIt is important to note that ultimately the framework is very meaningful.\n\n## Next"
+        profile = build_voice_profile(text)
+        revised, annotations, changes = rewrite_text(text, profile, "medium")
+        assert "# Title" in revised
+        assert "important to note" not in revised.lower()

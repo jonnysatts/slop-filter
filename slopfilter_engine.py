@@ -18,6 +18,19 @@ APP_VERSION = "3.0-alpha"
 
 WORD_RE = re.compile(r"[A-Za-z']+")
 CONSECUTIVE_SPACE_RE = re.compile(r"[ \t]{2,}")
+STRUCTURAL_LINE_RE = re.compile(
+    r"^(\s*#{1,6}\s|"       # Markdown headings
+    r"\s*[-*+]\s|"          # Bullet lists
+    r"\s*\d+\.\s|"          # Numbered lists
+    r"\s*>\s|"              # Blockquotes
+    r"\s*```|"              # Code fences
+    r"\s*\|)"               # Table rows
+)
+
+def is_structural_line(line: str) -> bool:
+    return bool(STRUCTURAL_LINE_RE.match(line))
+
+
 PASSIVE_RE = re.compile(
     r"\b(was|were|been|being|is|are|am|get|got|gets|getting)\s+"
     r"((?:not|never|always|often|already|also|then|soon|finally|fully|"
@@ -777,40 +790,78 @@ def apply_document_mode_bias(text: str, document_mode: str) -> str:
 
 
 def rewrite_text(text: str, target_profile: dict, edit_budget: str) -> tuple[str, list[dict], int]:
-    paragraphs = split_paragraphs(text) or [text]
     original_analysis = analyse_text(text)
-    flagged = {item["original"] for item in original_analysis["annotations"]}
-    revised_paragraphs: list[str] = []
-    changed = 0
+    lines = text.replace("\r\n", "\n").split("\n")
+    in_code_block = False
+    prose_blocks: list[tuple[int, int]] = []
+    block_start: int | None = None
 
-    for paragraph in paragraphs:
-        revised_sentences: list[str] = []
-        for sentence in split_sentences(paragraph):
-            updated = sentence
-            if sentence in flagged or edit_budget != "minimal":
-                cleaned = cleanup_sentence(sentence)
-                if cleaned != sentence:
-                    updated = cleaned
-            revised_sentences.append(updated)
-            if updated != sentence:
-                changed += 1
-        rebuilt = " ".join(revised_sentences).strip()
-        rebuilt = align_sentence_lengths(rebuilt, target_profile)
-        revised_paragraphs.append(rebuilt)
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_code_block = not in_code_block
+            if block_start is not None:
+                prose_blocks.append((block_start, i))
+                block_start = None
+            continue
+        if in_code_block or is_structural_line(stripped) or stripped == "":
+            if block_start is not None:
+                prose_blocks.append((block_start, i))
+                block_start = None
+            continue
+        if block_start is None:
+            block_start = i
 
-    revised = "\n\n".join(revised_paragraphs).strip()
-    revised = apply_contraction_bias(revised, target_profile)
-    revised = CONSECUTIVE_SPACE_RE.sub(" ", revised)
+    if block_start is not None:
+        prose_blocks.append((block_start, len(lines)))
+
+    if not prose_blocks:
+        return text, [], 0
+
+    result_lines = list(lines)
+    total_changed = 0
+
+    for start, end in reversed(prose_blocks):
+        prose_text = "\n".join(lines[start:end])
+        paragraphs = split_paragraphs(prose_text) or [prose_text]
+        block_analysis = analyse_text(prose_text)
+        flagged = {item["original"] for item in block_analysis["annotations"]}
+        revised_paragraphs: list[str] = []
+        changed = 0
+
+        for paragraph in paragraphs:
+            revised_sentences: list[str] = []
+            for sentence in split_sentences(paragraph):
+                updated = sentence
+                if sentence in flagged or edit_budget != "minimal":
+                    cleaned = cleanup_sentence(sentence)
+                    if cleaned != sentence:
+                        updated = cleaned
+                revised_sentences.append(updated)
+                if updated != sentence:
+                    changed += 1
+            rebuilt = " ".join(revised_sentences).strip()
+            rebuilt = align_sentence_lengths(rebuilt, target_profile)
+            revised_paragraphs.append(rebuilt)
+
+        revised_prose = "\n\n".join(revised_paragraphs).strip()
+        revised_prose = apply_contraction_bias(revised_prose, target_profile)
+        revised_prose = CONSECUTIVE_SPACE_RE.sub(" ", revised_prose)
+
+        revised_lines = revised_prose.split("\n")
+        result_lines[start:end] = revised_lines
+        total_changed += changed
+
+    revised = "\n".join(result_lines)
     revised = re.sub(r"\n{3,}", "\n\n", revised).strip()
 
-    revised_analysis = analyse_text(revised)
-
     # Quality guard: if both metrics degraded, fall back to original
+    revised_analysis = analyse_text(revised)
     if (revised_analysis["quality_score"] < original_analysis["quality_score"] - 2
             and revised_analysis["detector_risk"] > original_analysis["detector_risk"] + 2):
         return text, original_analysis["annotations"], 0
 
-    return revised, revised_analysis["annotations"], changed
+    return revised, revised_analysis["annotations"], total_changed
 
 
 def score_delta(original: float, revised: float, invert: bool = False) -> float:
