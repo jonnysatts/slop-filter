@@ -69,6 +69,15 @@ INTENSIFIERS = {
     "simply",
 }
 
+NOT_MODIFIERS = {
+    "family", "only", "early", "elderly", "friendly", "lonely", "daily",
+    "weekly", "monthly", "yearly", "holy", "ugly", "likely", "unlikely",
+    "rally", "tally", "belly", "bully", "folly", "jolly", "ally",
+    "assembly", "supply", "apply", "reply", "imply", "multiply",
+    "fly", "july", "italy", "butterfly", "jelly", "billy", "lily",
+    "sally", "molly", "emily", "kelly", "polly", "holly", "wily",
+}
+
 GENERIC_WORDS = {
     "thing",
     "things",
@@ -325,7 +334,7 @@ def build_voice_profile(text: str) -> dict:
     paragraph_counts = [len(split_sentences(paragraph)) for paragraph in paragraphs]
     token_count = len(tokens) or 1
     char_count = len(text) or 1
-    modifier_hits = sum(1 for token in tokens if token in INTENSIFIERS or token.endswith("ly"))
+    modifier_hits = sum(1 for token in tokens if token in INTENSIFIERS or (token.endswith("ly") and token not in NOT_MODIFIERS and len(token) > 3))
 
     profile = {
         "avg_sentence_length": round(safe_mean(lengths), 3),
@@ -394,7 +403,7 @@ def analyse_text(text: str) -> dict:
     cliche_hits = sum(1 for phrase in CLICHES if phrase in lower)
     generic_hits = sum(tokens.count(word) for word in GENERIC_WORDS)
     abstract_hits = sum(tokens.count(word) for word in ABSTRACT_WORDS)
-    modifier_hits = sum(1 for token in tokens if token in INTENSIFIERS or token.endswith("ly"))
+    modifier_hits = sum(1 for token in tokens if token in INTENSIFIERS or (token.endswith("ly") and token not in NOT_MODIFIERS and len(token) > 3))
     transition_hits = sum(count_pattern_hits(lower, item) for item in TRANSITION_PATTERNS)
     repeated_starts = count_repeated_starts(sentences)
     monotonous_runs = count_monotonous_runs(lengths)
@@ -735,6 +744,12 @@ def rewrite_text(text: str, target_profile: dict, edit_budget: str) -> tuple[str
     revised = re.sub(r"\n{3,}", "\n\n", revised).strip()
 
     revised_analysis = analyse_text(revised)
+
+    # Quality guard: if both metrics degraded, fall back to original
+    if (revised_analysis["quality_score"] < original_analysis["quality_score"] - 2
+            and revised_analysis["detector_risk"] > original_analysis["detector_risk"] + 2):
+        return text, original_analysis["annotations"], 0
+
     return revised, revised_analysis["annotations"], changed
 
 

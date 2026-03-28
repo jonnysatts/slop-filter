@@ -200,3 +200,28 @@ class TestCleanupSentence:
     def test_emdash_parenthetical_converted(self):
         result = cleanup_sentence("The project\u2014already behind schedule\u2014needed more time.")
         assert "needed" in result
+
+
+class TestModifierCounting:
+    def test_family_not_counted_as_modifier(self):
+        text = "His family arrived early. The elderly neighbour waved daily."
+        result = analyse_text(text)
+        assert result["signals"]["modifier_hits"] == 0
+
+    def test_actual_modifiers_still_counted(self):
+        text = "He carefully slowly deliberately opened the door."
+        result = analyse_text(text)
+        assert result["signals"]["modifier_hits"] >= 3
+
+
+class TestRewriteQualityGuard:
+    def test_rewrite_does_not_degrade_both_metrics(self):
+        text = "The machine hummed. Gears turned inside the housing. Oil dripped from the seal."
+        profile = build_voice_profile(text)
+        revised, annotations, changes = rewrite_text(text, profile, "aggressive")
+        original_analysis = analyse_text(text)
+        revised_analysis = analyse_text(revised)
+        quality_delta = revised_analysis["quality_score"] - original_analysis["quality_score"]
+        risk_delta = original_analysis["detector_risk"] - revised_analysis["detector_risk"]
+        if quality_delta < -2 and risk_delta < -2:
+            assert revised == text, "Rewriter made both metrics worse but did not fall back"
