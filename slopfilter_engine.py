@@ -620,7 +620,9 @@ def cleanup_sentence(sentence: str) -> str:
         updated,
         flags=re.I,
     )
-    updated = updated.replace("—", ", ").replace("--", ", ")
+    # Only convert em dashes between two words (parenthetical/clause break)
+    updated = re.sub(r"(\w)\s*\u2014\s*(\w)", r"\1, \2", updated)
+    updated = re.sub(r"(\w)\s*--\s*(\w)", r"\1, \2", updated)
     updated = re.sub(r"\s+,", ",", updated)
     updated = re.sub(r",\s*,", ", ", updated)
     updated = CONSECUTIVE_SPACE_RE.sub(" ", updated).strip()
