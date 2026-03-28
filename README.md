@@ -37,13 +37,21 @@ That opens the app at [http://127.0.0.1:8743](http://127.0.0.1:8743).
 
 ## Files
 
-- [launch.py](/Users/jonsatterley/Downloads/slop-filter-v2/launch.py): launcher
-- [server.py](/Users/jonsatterley/Downloads/slop-filter-v2/server.py): stdlib HTTP server and API
-- [slopfilter_engine.py](/Users/jonsatterley/Downloads/slop-filter-v2/slopfilter_engine.py): batch engine, scoring, rewrite pass, voice analysis, export
-- [index.html](/Users/jonsatterley/Downloads/slop-filter-v2/index.html): app shell
-- [app.js](/Users/jonsatterley/Downloads/slop-filter-v2/app.js): UI logic
-- [styles.css](/Users/jonsatterley/Downloads/slop-filter-v2/styles.css): UI styling
-- [portable_client.js](/Users/jonsatterley/Downloads/slop-filter-v2/portable_client.js): tiny client for calling the portable slop-check endpoint
+- `launch.py`: launcher
+- `server.py`: stdlib HTTP server and API
+- `slopfilter_engine.py`: batch engine, scoring, rewrite pass, voice analysis, export
+- `persistence.py`: store abstraction (local disk / Supabase)
+- `index.html`: app shell
+- `app.js`: UI logic
+- `styles.css`: UI styling
+- `portable_client.js`: tiny client for calling the portable slop-check endpoint
+
+## Documentation
+
+- [Integration Guide](docs/integration-guide.md) -- everything another application needs to call this API
+- [Engine Assessment](docs/engine-assessment.md) -- honest review of the engine's mechanics and ranked improvement areas
+- [Deployment Playbook](docs/deployment-playbook.md) -- general hosting options and security checklist
+- [Railway and Supabase Rollout](docs/railway-supabase-rollout.md) -- specific deploy sequence for the current stack
 
 ## Portable API
 
