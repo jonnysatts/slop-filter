@@ -16,9 +16,18 @@ from persistence import Store, create_store
 
 APP_VERSION = "3.0-alpha"
 
-SENTENCE_RE = re.compile(r"(?<=[.!?])\s+(?=[\"'A-Z0-9])")
 WORD_RE = re.compile(r"[A-Za-z']+")
 CONSECUTIVE_SPACE_RE = re.compile(r"[ \t]{2,}")
+
+ABBREVIATIONS = {
+    "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "ft", "mt",
+    "gen", "gov", "sgt", "cpl", "pvt", "capt", "lt", "col", "maj",
+    "rev", "hon", "pres", "dept", "univ", "assn", "bros", "inc",
+    "ltd", "co", "corp", "vs", "al", "approx", "est",
+    "vol", "fig", "eq", "no",
+}
+
+ABBREVIATION_PAIRS = {"e.g", "i.e", "a.m", "p.m", "u.s", "u.k", "u.n"}
 
 FILLER_PATTERNS = [
     (re.compile(r"\b(it is important to note that|it's important to note that)\b", re.I), ""),
@@ -176,16 +185,74 @@ def split_sentences(text: str) -> list[str]:
     text = text.strip()
     if not text:
         return []
-    rough = SENTENCE_RE.split(text)
+
     sentences: list[str] = []
-    for piece in rough:
-        piece = piece.strip()
-        if not piece:
-            continue
-        if sentences and len(piece.split()) <= 2 and not piece.endswith((".", "!", "?")):
-            sentences[-1] = f"{sentences[-1]} {piece}".strip()
-            continue
-        sentences.append(piece)
+    current: list[str] = []
+    chars = list(text)
+    i = 0
+
+    while i < len(chars):
+        current.append(chars[i])
+
+        if chars[i] in ".!?":
+            is_boundary = False
+            end_char = chars[i]
+
+            # Handle ellipsis: consume all consecutive dots
+            if end_char == ".":
+                while i + 1 < len(chars) and chars[i + 1] == ".":
+                    i += 1
+                    current.append(chars[i])
+
+            # Consume any closing quotes or brackets after the punctuation
+            j = i + 1
+            while j < len(chars) and chars[j] in "\"')]\u201d\u2019":
+                j += 1
+
+            if j >= len(chars):
+                is_boundary = True
+            elif chars[j] in " \t\n\r":
+                k = j
+                while k < len(chars) and chars[k] in " \t\n\r":
+                    k += 1
+
+                if k >= len(chars):
+                    is_boundary = True
+                elif chars[k].isupper() or chars[k].isdigit() or chars[k] in "\"'\u201c\u2018":
+                    fragment = "".join(current).rstrip(".!?").strip()
+                    last_token = fragment.split()[-1].lower().rstrip(".") if fragment.split() else ""
+
+                    if end_char == "." and last_token in ABBREVIATIONS:
+                        is_boundary = False
+                    elif end_char == "." and last_token in ABBREVIATION_PAIRS:
+                        is_boundary = False
+                    elif end_char == "." and len(last_token) == 1 and last_token.isalpha():
+                        is_boundary = False
+                    elif end_char == "." and re.match(r"^\d+$", last_token):
+                        is_boundary = False
+                    else:
+                        is_boundary = True
+                # If next char is lowercase, not a boundary
+            # If no whitespace after punctuation, not a boundary (e.g. abbreviation like "U.S.A")
+
+            if is_boundary:
+                while i + 1 < len(chars) and chars[i + 1] in "\"')]\u201d\u2019":
+                    i += 1
+                    current.append(chars[i])
+                sentence = "".join(current).strip()
+                if sentence:
+                    sentences.append(sentence)
+                current = []
+
+        i += 1
+
+    tail = "".join(current).strip()
+    if tail:
+        if sentences and len(tail.split()) <= 2 and not tail.endswith((".", "!", "?")):
+            sentences[-1] = f"{sentences[-1]} {tail}".strip()
+        else:
+            sentences.append(tail)
+
     return sentences or [text]
 
 

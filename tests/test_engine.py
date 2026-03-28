@@ -104,3 +104,58 @@ class TestRewriteText:
         revised, annotations, changes = rewrite_text(text, profile, "medium")
         assert changes >= 1
         assert "important to note" not in revised.lower()
+
+
+class TestSplitSentences:
+    def test_basic_split(self):
+        result = split_sentences("First sentence. Second sentence.")
+        assert len(result) == 2
+
+    def test_abbreviation_dr(self):
+        result = split_sentences("Dr. Smith arrived at noon. The clinic was busy.")
+        assert len(result) == 2
+        assert "Dr. Smith" in result[0]
+
+    def test_abbreviation_mr_mrs(self):
+        result = split_sentences("Mr. Jones and Mrs. Smith met at St. Paul's. They talked.")
+        assert len(result) == 2
+        assert "Mr. Jones" in result[0]
+
+    def test_decimal_number(self):
+        result = split_sentences("The rate was 3.5 percent. Growth continued.")
+        assert len(result) == 2
+        assert "3.5" in result[0]
+
+    def test_initials(self):
+        result = split_sentences("J. R. R. Tolkien wrote it. He was famous.")
+        assert len(result) == 2
+        assert "Tolkien" in result[0]
+
+    def test_us_abbreviation(self):
+        result = split_sentences("The U.S. economy grew. Exports rose.")
+        assert len(result) == 2
+        assert "U.S." in result[0]
+
+    def test_ellipsis(self):
+        result = split_sentences("And then... it happened. Nobody moved.")
+        assert len(result) == 2
+
+    def test_question_and_exclamation(self):
+        result = split_sentences("What happened? Nobody knew! The room was silent.")
+        assert len(result) == 3
+
+    def test_single_sentence(self):
+        result = split_sentences("Just one sentence here.")
+        assert len(result) == 1
+
+    def test_empty(self):
+        assert split_sentences("") == []
+
+    def test_eg_ie(self):
+        result = split_sentences("Use a tool, e.g. a hammer. It works well.")
+        assert len(result) == 2
+        assert "e.g." in result[0]
+
+    def test_etc(self):
+        result = split_sentences("Bring food, drinks, etc. The party starts at eight.")
+        assert len(result) == 2
